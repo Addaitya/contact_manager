@@ -11,14 +11,17 @@ router = APIRouter(
 def health():
     return "working"
 
+
 @router.post("/contacts")
 def add_contact():
     pass
 
-@router.get('/contacts')
+
+@router.get("/contacts")
 def get_contacts():
     pass
 
-@router.get('/search')
+
+@router.get("/search")
 def search_contact():
     pass
