@@ -1,0 +1,7 @@
+services:
+  server:
+    build: 
+      dockerfile: src/dockerfile
+    
+    ports:
+      - 8000:8000
