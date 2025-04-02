@@ -1,12 +1,19 @@
 # Contact Manager
 This is contact manager web app made using fastapi for server and html,css and javascript for forntend.
 
+API documentation can be access using postman [link](https://github.com/Addaitya/contact_manager)
+
+## Contant of Table
+- [File system](#file-system)
+- [Setup project](#how-to-setup)
+- [Features](#features)
+- [Demo images](#demo)
+
 ## File System
 ```
 contact_manager
     ├── compose.yaml
     ├── images
-    │   └── home.png
     ├── README.md
     ├── requirements.txt
     ├── src
@@ -60,3 +67,6 @@ uvicorn src.main:app --port 8000
 
 ### Add Contact
 ![alt text](images/add_contact.png)
+
+### Search Contact
+![alt text](images/search_contact.png)

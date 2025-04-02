@@ -15,7 +15,9 @@ def test_health():
 
 def test_get_contacts():
     """Test get pagenated contacts api."""
-    res = requests.get(f"{base_url}/contacts", params={"page": 0, "limit": 10})
+    res = requests.get(
+        f"{base_url}/contacts", params={"page": 0, "limit": 10}, timeout=5000
+    )
     assert res.status_code == 200
     data = res.json()
     fields = ["contacts", "prev", "next", "limit", "page", "total"]
@@ -33,7 +35,7 @@ def test_add_contact():
         "number": "9458433243",
     }
 
-    res = requests.post(f"{base_url}/contacts", json=contact_info)
+    res = requests.post(f"{base_url}/contacts", json=contact_info, timeout=5000)
 
     assert res.status_code == 200
 
@@ -47,7 +49,7 @@ def test_email_validation():
         "number": "9458433243",
     }
 
-    res = requests.post(f"{base_url}/contacts", json=contact_info)
+    res = requests.post(f"{base_url}/contacts", json=contact_info, timeout=5000)
 
     assert res.status_code == 422
 
@@ -61,6 +63,20 @@ def test_number_validation():
         "number": "012345678910",
     }
 
-    res = requests.post(f"{base_url}/contacts", json=contact_info)
+    res = requests.post(f"{base_url}/contacts", json=contact_info, timeout=5000)
 
     assert res.status_code == 422
+
+
+def test_delete_contact():
+    """Test deletion of contact"""
+    contact_info = {"number": "9458433243"}
+    res = requests.delete(f"{base_url}/contacts", json=contact_info, timeout=5000)
+    assert res.status_code == 200
+
+
+def test_search_contact():
+    """Test search contact."""
+    res = requests.get(f"{base_url}/search", params={"query": "95"})
+    assert res.status_code == 200
+    assert isinstance(res.json(), list)

@@ -50,7 +50,7 @@
             <div id="searchContent" class="modal-content">
                 <span class="close" onclick="closeSearchModal()">&times;</span>
                 <h2>Search Contacts</h2>
-                <input type="text" id="searchInput" placeholder="Type to search..." onkeyup="searchContacts()">
+                <input type="text" id="searchInput" placeholder="Type to search..." onkeyup="debouncedSearchContacts()">
                 <div id="searchSuggestions"></div>
             </div>
         </div>
@@ -76,12 +76,12 @@
         function displayContacts(contacts) {
             const list = document.getElementById('contactList');
             list.innerHTML = '';
-            contacts.forEach(contact => {
+            contacts.forEach((contact,i) => {
                 const div = document.createElement('div');
                 div.className = 'contact-item';
                 div.innerHTML = `
                     <span>${contact.name} - ${contact.email} - ${contact.code} ${contact.number}</span>
-                    <button onclick="deleteContact(${contact.id})">Delete</button>
+                    <button onclick="deleteContact(${contact.number}, ${i})">Delete</button>
                 `;
                 list.appendChild(div);
             });
@@ -133,9 +133,15 @@
                     body: JSON.stringify(contact)
                 });
 
-                if (!response.ok && response.status == 422 ) {
+                if (!response.ok && response.status == 422) {
                     const data = await response.json()
                     notification.textContent = data['detail'][0]['msg'] || 'An error occurred while adding the contact.';
+                    notification.style.display = 'block';
+                    return;
+                }
+                else if(!response.ok && response.status == 409){
+                    const data = await response.json();
+                    notification.textContent = data.detail || 'An error occurred while adding the contact.';
                     notification.style.display = 'block';
                     return;
                 }
@@ -161,6 +167,32 @@
             notification.style.display = 'none'; // Hide notification when closing modal
         }
 
+        async function deleteContact(number, i) {
+            try {
+                const response = await fetch('/api/contacts', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({number: number})
+                })
+                if(response.status == 200){
+                    const list = document.getElementById('contactList');
+                    const child = list.childNodes[i]
+                    // list.removeChild(child)
+                    child.remove()
+                }
+            } catch(error) {
+                console.error(error)
+            }
+        }
+
+        function debounce(func, delay) {
+            let timer;
+            return function(...args) {
+                clearTimeout(timer);
+                timer = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
         async function searchContacts() {
             const query = document.getElementById('searchInput').value;
             if (!query) {
@@ -169,17 +201,16 @@
             }
 
             try {
-                const response = await fetch('/api/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query })
-                });
+                const response = await fetch(`/api/search?query=${query}`);
                 const data = await response.json();
-                displaySuggestions(data.results);
+                    displaySuggestions(data);
             } catch (error) {
                 console.error('Error searching contacts:', error);
             }
         }
+
+        const debouncedSearchContacts = debounce(searchContacts, 300);
+
 
         function displaySuggestions(suggestions) {
             const suggestionsDiv = document.getElementById('searchSuggestions');
@@ -187,14 +218,14 @@
             suggestions.forEach(contact => {
                 const div = document.createElement('div');
                 div.className = 'suggestion-item';
-                div.textContent = `${contact.name} - ${contact.email}`;
+                div.textContent = `${contact.name} - ${contact.email} - ${contact.code} ${contact.number}`;
                 div.onclick = () => selectSuggestion(contact);
                 suggestionsDiv.appendChild(div);
             });
         }
 
         function selectSuggestion(contact) {
-            alert(`Selected: ${contact.name} (${contact.email})`);
+            alert(`Selected: ${contact.name} (${contact.email}) ${contact.code} ${contact.number}`);
             closeSearchModal();
         }
 

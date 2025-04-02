@@ -1,6 +1,9 @@
 import csv
 import os
+import re
 from itertools import islice
+
+import pandas as pd
 
 FILE_PATH = os.getenv("CONTACT_PATH", "src/datastore/contact.csv")
 
@@ -60,3 +63,44 @@ def contact_exists(number: str):
                 return True
 
     return False
+
+
+def delete_contact(number: str):
+    global FILE_PATH
+    temp_file = FILE_PATH + ".tmp"
+
+    with open(FILE_PATH, "r") as inp, open(temp_file, "w") as out:
+        reader = csv.DictReader(inp)
+        fieldnames = reader.fieldnames
+        writer = csv.DictWriter(out, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for row in reader:
+            if row["number"] != number:
+                writer.writerow(row)
+
+    os.replace(temp_file, FILE_PATH)
+
+
+def search_contact(query: str):
+    global FILE_PATH
+    df = pd.read_csv(FILE_PATH)
+
+    query = query.strip()
+    # search email field
+    if bool(re.match(r"^[\s]*@[\s*]$", query)):
+        result = df[df["email"].str.contains(query, case=False, na=False)].to_dict(
+            "records"
+        )
+    # search in number field
+    elif bool(re.match(r"^[\d]+$", query)):
+        result = df[
+            df["number"].astype(str).str.contains(str(query), case=False, na=False)
+        ].to_dict("records")
+    # search in name field
+    else:
+        result = df[df["name"].str.contains(query, case=False, na=False)].to_dict(
+            "records"
+        )
+
+    return result
