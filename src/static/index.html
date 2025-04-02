@@ -4,10 +4,213 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Contact Manager</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1>Contact Manager</h1>
-    <script src="app.js"></script>
+    <div class="container">
+        <div class="header">
+            <h1>Contact Manager</h1>
+            <button onclick="showAddModal()">Add Contact</button>
+            <button onclick="showSearchModal()">Search Contacts</button>
+        </div>
+
+        <div id="contactList"></div>
+        <div id="pagination" class="pagination"></div>
+
+        <!-- Add Contact Modal -->
+        <div id="addModal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAddModal()">×</span>
+                <h2>Add Contact</h2>
+                <div id="notification" style="display: none; background-color: #ff4444; color: white; padding: 10px; margin-bottom: 15px; border-radius: 5px;"></div>
+                <form id="addForm">
+                    <div class="form-group">
+                        <label for="name">Name:</label>
+                        <input type="text" id="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="code">Code:</label>
+                        <input type="text" id="code" value="+91" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="number">Number:</label>
+                        <input type="tel" id="number" required>
+                    </div>
+                    <button type="submit">Add Contact</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Search Modal -->
+        <div id="searchModal">
+            <div id="searchContent" class="modal-content">
+                <span class="close" onclick="closeSearchModal()">&times;</span>
+                <h2>Search Contacts</h2>
+                <input type="text" id="searchInput" placeholder="Type to search..." onkeyup="searchContacts()">
+                <div id="searchSuggestions"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 0;
+        const defaultLimit = 10;
+        let totalContacts = 0;
+
+        async function fetchContacts(page = 0, limit = defaultLimit) {
+            try {
+                const response = await fetch(`/api/contacts?page=${page}&limit=${limit}`);
+                const data = await response.json();
+                totalContacts = data.total;
+                displayContacts(data.contacts);
+                setupPagination(page, limit);
+            } catch (error) {
+                console.error('Error fetching contacts:', error);
+            }
+        }
+
+        function displayContacts(contacts) {
+            const list = document.getElementById('contactList');
+            list.innerHTML = '';
+            contacts.forEach(contact => {
+                const div = document.createElement('div');
+                div.className = 'contact-item';
+                div.innerHTML = `
+                    <span>${contact.name} - ${contact.email} - ${contact.code} ${contact.number}</span>
+                    <button onclick="deleteContact(${contact.id})">Delete</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function setupPagination(page, limit) {
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Previous';
+            prevButton.onclick = () => fetchContacts(page - 1, limit);
+            prevButton.disabled = page === 0;
+            pagination.appendChild(prevButton);
+
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.onclick = () => fetchContacts(page + 1, limit);
+            nextButton.disabled = (page + 1) * limit >= totalContacts;
+            pagination.appendChild(nextButton);
+
+            const limitSelect = document.createElement('select');
+            limitSelect.onchange = (e) => fetchContacts(0, parseInt(e.target.value));
+            [10, 50, 100].forEach(l => {
+                const option = document.createElement('option');
+                option.value = l;
+                option.textContent = `Show ${l}`;
+                option.selected = l === limit;
+                limitSelect.appendChild(option);
+            });
+            pagination.appendChild(limitSelect);
+        }
+
+        async function addContact(event) {
+            event.preventDefault();
+            const contact = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                code: document.getElementById('code').value,
+                number: document.getElementById('number').value
+            };
+
+            const notification = document.getElementById('notification');
+
+            try {
+                const response = await fetch('/api/contacts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(contact)
+                });
+
+                if (!response.ok && response.status == 422 ) {
+                    const data = await response.json()
+                    notification.textContent = data['detail'][0]['msg'] || 'An error occurred while adding the contact.';
+                    notification.style.display = 'block';
+                    return;
+                }
+
+                closeAddModal();
+                fetchContacts();
+            } catch (error) {
+                notification.textContent = error.message || 'An error occurred while adding the contact.';
+                notification.style.display = 'block';
+                console.error('Error adding contact:', error);
+            }
+        }
+
+        function showAddModal() {
+            document.getElementById('addModal').style.display = 'block';
+            document.getElementById('addForm').onsubmit = addContact;
+        }
+
+        function closeAddModal() {
+            document.getElementById('addModal').style.display = 'none';
+            document.getElementById('addForm').reset();
+            const notification = document.getElementById('notification');
+            notification.style.display = 'none'; // Hide notification when closing modal
+        }
+
+        async function searchContacts() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) {
+                document.getElementById('searchSuggestions').innerHTML = '';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+                const data = await response.json();
+                displaySuggestions(data.results);
+            } catch (error) {
+                console.error('Error searching contacts:', error);
+            }
+        }
+
+        function displaySuggestions(suggestions) {
+            const suggestionsDiv = document.getElementById('searchSuggestions');
+            suggestionsDiv.innerHTML = '';
+            suggestions.forEach(contact => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.textContent = `${contact.name} - ${contact.email}`;
+                div.onclick = () => selectSuggestion(contact);
+                suggestionsDiv.appendChild(div);
+            });
+        }
+
+        function selectSuggestion(contact) {
+            alert(`Selected: ${contact.name} (${contact.email})`);
+            closeSearchModal();
+        }
+
+        function showSearchModal() {
+            document.getElementById('searchModal').style.display = 'block';
+            document.getElementById('searchInput').focus();
+        }
+
+        function closeSearchModal() {
+            document.getElementById('searchModal').style.display = 'none';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchSuggestions').innerHTML = '';
+        }
+
+        // Initial load
+        fetchContacts();
+    </script>
 </body>
 </html>
